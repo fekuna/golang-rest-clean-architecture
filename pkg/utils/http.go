@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"context"
 	"mime/multipart"
 	"net/http"
 
@@ -15,17 +14,9 @@ import (
 // UserCtxKey is a key used for the User object in the context
 type UserCtxKey struct{}
 
-// ReqIDCtxKey is a key used for the Request ID in context
-type ReqIDCtxKey struct{}
-
 // Get request id from echo context
 func GetRequestID(c echo.Context) string {
 	return c.Response().Header().Get(echo.HeaderXRequestID)
-}
-
-// Get context with request id
-func GetRequestCtx(c echo.Context) context.Context {
-	return context.WithValue(c.Request().Context(), ReqIDCtxKey{}, GetRequestID(c))
 }
 
 // Get user ip address

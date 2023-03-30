@@ -1,4 +1,3 @@
-//go:generate mockgen -source redis_repository.go -destination mock/redis_repository_mock.go -package mock
 package session
 
 import (
