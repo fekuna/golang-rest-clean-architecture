@@ -8,4 +8,5 @@ import (
 
 type UseCase interface {
 	Register(ctx context.Context, user *models.User) (*models.UserWithToken, error)
+	Login(ctx context.Context, user *models.User) (*models.UserWithToken, error)
 }

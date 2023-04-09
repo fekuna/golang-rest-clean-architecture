@@ -64,3 +64,45 @@ func (h *authHandlers) Register() echo.HandlerFunc {
 		return c.JSON(http.StatusCreated, createdUser)
 	}
 }
+
+// Login godoc
+// @Summary Login new user
+// @Description login user, returns user and set session
+// @Tags Auth
+// @Accept json
+// @Produce json
+// @Success 200 {object} models.User
+// @Router /auth/login [post]
+func (h *authHandlers) Login() echo.HandlerFunc {
+	type Login struct {
+		Email    string `json:"email" db:"email" validate:"omitempty,lte=60,email"`
+		Password string `json:"password,omitempty" db:"password" validate:"required,gte=6"`
+	}
+	return func(c echo.Context) error {
+		// TODO: tracing
+		ctx := context.Background()
+
+		login := &Login{}
+		if err := utils.ReadRequest(c, login); err != nil {
+			utils.LogResponseError(c, h.logger, err)
+			return c.JSON(httpErrors.ErrorResponse(err))
+		}
+
+		userWithToken, err := h.authUC.Login(ctx, &models.User{
+			Email:    login.Email,
+			Password: login.Password,
+		})
+		if err != nil {
+			utils.LogResponseError(c, h.logger, err)
+			return c.JSON(httpErrors.ErrorResponse(err))
+		}
+
+		sess, err := h.sessUC.CreateSession(ctx, &models.Session{
+			UserID: userWithToken.User.UserID,
+		}, h.cfg.Session.Expire)
+
+		c.SetCookie(utils.CreateSessionCookie(h.cfg, sess))
+
+		return c.JSON(http.StatusOK, userWithToken)
+	}
+}
