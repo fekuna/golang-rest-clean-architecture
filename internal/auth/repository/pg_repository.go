@@ -5,6 +5,7 @@ import (
 
 	"github.com/fekuna/api-mc/internal/auth"
 	"github.com/fekuna/api-mc/internal/models"
+	"github.com/fekuna/api-mc/pkg/utils"
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
 )
@@ -39,4 +40,53 @@ func (r *authRepo) FindByEmail(ctx context.Context, user *models.User) (*models.
 		return nil, errors.Wrap(err, "authRepo.FindByEmail.QueryRowxContext")
 	}
 	return foundUser, nil
+}
+
+// Find by name
+func (r *authRepo) FindByName(ctx context.Context, name string, query *utils.PaginationQuery) (*models.UsersList, error) {
+	// TODO: tracing
+
+	var totalCount int
+	if err := r.db.GetContext(ctx, &totalCount, getTotalCount, name); err != nil {
+		return nil, errors.Wrap(err, "authRepo.FindByName.GetContext.totalCount")
+	}
+
+	if totalCount == 0 {
+		return &models.UsersList{
+			TotalCount: totalCount,
+			TotalPages: utils.GetTotalPages(totalCount, query.GetSize()),
+			Page:       query.GetPage(),
+			Size:       query.GetSize(),
+			HasMore:    utils.GetHasMore(query.GetPage(), totalCount, query.GetSize()),
+			Users:      make([]*models.User, 0),
+		}, nil
+	}
+
+	rows, err := r.db.QueryxContext(ctx, findUsers, name, query.GetOffset(), query.GetLimit())
+	if err != nil {
+		return nil, errors.Wrap(err, "authRepo.FindByName.QueryxContext")
+	}
+	defer rows.Close()
+
+	var users = make([]*models.User, 0, query.GetSize())
+	for rows.Next() {
+		var user models.User
+		if err = rows.StructScan(&user); err != nil {
+			return nil, errors.Wrap(err, "authRepo.FindByName.StructScan")
+		}
+		users = append(users, &user)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, errors.Wrap(err, "authRepo.FindByName.rows.Err")
+	}
+
+	return &models.UsersList{
+		TotalCount: totalCount,
+		TotalPages: utils.GetTotalPages(totalCount, query.GetSize()),
+		Page:       query.GetPage(),
+		Size:       query.GetSize(),
+		HasMore:    utils.GetHasMore(query.GetPage(), totalCount, query.GetSize()),
+		Users:      users,
+	}, nil
 }

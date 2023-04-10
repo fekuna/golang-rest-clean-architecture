@@ -1,0 +1,15 @@
+FROM golang:1.20
+
+ENV config=docker
+
+WORKDIR /app
+
+COPY ./ /app
+
+RUN go mod download
+
+RUN go install -mod=mod github.com/githubnemo/CompileDaemon
+
+EXPOSE 5000
+
+ENTRYPOINT CompileDaemon --build="go build cmd/api/main.go" --command=./main

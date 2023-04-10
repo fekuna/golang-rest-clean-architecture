@@ -2,6 +2,7 @@ package http
 
 import (
 	"context"
+	"errors"
 	"net/http"
 
 	"github.com/fekuna/api-mc/config"
@@ -104,5 +105,76 @@ func (h *authHandlers) Login() echo.HandlerFunc {
 		c.SetCookie(utils.CreateSessionCookie(h.cfg, sess))
 
 		return c.JSON(http.StatusOK, userWithToken)
+	}
+}
+
+// Logout godoc
+// @Summary Logout user
+// @Description logout user removing session
+// @Tags Auth
+// @Accept json
+// @Produce json
+// @Success 200 {string} string "ok"
+// @Router /auth/logout [post]
+func (h *authHandlers) Logout() echo.HandlerFunc {
+	return func(c echo.Context) error {
+		// TODO: tracing
+
+		ctx := context.Background()
+
+		cookie, err := c.Cookie("session-id")
+		if err != nil {
+			if errors.Is(err, http.ErrNoCookie) {
+				utils.LogResponseError(c, h.logger, err)
+				return c.JSON(http.StatusUnauthorized, httpErrors.NewUnauthorizedError(err))
+			}
+			utils.LogResponseError(c, h.logger, err)
+			return c.JSON(http.StatusInternalServerError, httpErrors.NewInternalServerError(err))
+		}
+
+		if err := h.sessUC.DeleteByID(ctx, cookie.Value); err != nil {
+			utils.LogResponseError(c, h.logger, err)
+			return c.JSON(httpErrors.ErrorResponse(err))
+		}
+
+		utils.DeleteSessionCookie(c, h.cfg.Session.Name)
+
+		return c.NoContent(http.StatusOK)
+	}
+}
+
+// FindByName godoc
+// @Summary Find by name
+// @Description Find user by name
+// @Tags Auth
+// @Accept json
+// @Param name query string false "username" Format(username)
+// @Produce json
+// @Success 200 {object} models.UsersList
+// @Failure 500 {object} httpErrors.RestError
+// @Router /auth/find [get]
+func (h *authHandlers) FindByName() echo.HandlerFunc {
+	return func(c echo.Context) error {
+		// TODO: tracing
+		ctx := context.Background()
+
+		if c.QueryParam("name") == "" {
+			utils.LogResponseError(c, h.logger, httpErrors.NewBadRequestError("name is required"))
+			return c.JSON(http.StatusBadRequest, httpErrors.NewBadRequestError("name is required"))
+		}
+
+		paginationQuery, err := utils.GetPaginationFromCtx(c)
+		if err != nil {
+			utils.LogResponseError(c, h.logger, err)
+			return c.JSON(httpErrors.ErrorResponse(err))
+		}
+
+		response, err := h.authUC.FindByName(ctx, c.QueryParam("name"), paginationQuery)
+		if err != nil {
+			utils.LogResponseError(c, h.logger, err)
+			return c.JSON(httpErrors.ErrorResponse(err))
+		}
+
+		return c.JSON(http.StatusOK, response)
 	}
 }

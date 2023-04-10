@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/fekuna/api-mc/config"
@@ -30,12 +29,9 @@ func GetConfigPath(configPath string) string {
 
 // Read request body and validate
 func ReadRequest(ctx echo.Context, request interface{}) error {
-	fmt.Println("Before bind")
 	if err := ctx.Bind(request); err != nil {
-		fmt.Println("Error bind", err)
 		return err
 	}
-	fmt.Println("After bind")
 	return validate.StructCtx(ctx.Request().Context(), request)
 }
 
@@ -47,6 +43,20 @@ func LogResponseError(ctx echo.Context, logger logger.Logger, err error) {
 		GetIPAddress(ctx),
 		err,
 	)
+}
+
+// Configure jwt cookie
+func ConfigureJWTCookie(cfg *config.Config, jwtToken string) *http.Cookie {
+	return &http.Cookie{
+		Name:       cfg.Cookie.Name,
+		Value:      jwtToken,
+		Path:       "/",
+		RawExpires: "",
+		MaxAge:     cfg.Cookie.MaxAge,
+		Secure:     cfg.Cookie.Secure,
+		HttpOnly:   cfg.Cookie.HTTPOnly,
+		SameSite:   0,
+	}
 }
 
 // Configure session cookie
@@ -63,4 +73,14 @@ func CreateSessionCookie(cfg *config.Config, session string) *http.Cookie {
 		HttpOnly:   cfg.Cookie.HTTPOnly,
 		SameSite:   0,
 	}
+}
+
+// Delete session
+func DeleteSessionCookie(c echo.Context, sessionName string) {
+	c.SetCookie(&http.Cookie{
+		Name:   sessionName,
+		Value:  "",
+		Path:   "/",
+		MaxAge: -1,
+	})
 }

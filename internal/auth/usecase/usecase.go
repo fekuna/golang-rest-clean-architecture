@@ -85,3 +85,10 @@ func (u *authUC) Login(ctx context.Context, user *models.User) (*models.UserWith
 		Token: token,
 	}, nil
 }
+
+// Find users by name
+func (u *authUC) FindByName(ctx context.Context, name string, query *utils.PaginationQuery) (*models.UsersList, error) {
+	// TODO: tracing
+
+	return u.authRepo.FindByName(ctx, name, query)
+}

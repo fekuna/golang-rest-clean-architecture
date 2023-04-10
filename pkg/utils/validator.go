@@ -2,7 +2,6 @@ package utils
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/go-playground/validator/v10"
 )
@@ -11,7 +10,6 @@ import (
 var validate *validator.Validate
 
 func init() {
-	fmt.Println("validate init running lho")
 	validate = validator.New()
 }
 

@@ -1,6 +1,26 @@
 version: "3.8"
 
 services:
+  web:
+    container_name: api
+    build:
+      context: ./
+      dockerfile: docker/Dockerfile.HotReload
+    ports:
+      - "5000:5000"
+      - "5555:5555"
+      - "7070:7070"
+    environment:
+      - PORT=5000
+    depends_on:
+      - postgresql
+      - redis
+    restart: always
+    volumes:
+      - ./:/app
+    networks:
+      - web_api
+
   redis:
     image: redis:6.0.9-alpine
     container_name: api_redis
