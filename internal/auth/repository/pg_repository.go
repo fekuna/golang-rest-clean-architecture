@@ -6,6 +6,7 @@ import (
 	"github.com/fekuna/api-mc/internal/auth"
 	"github.com/fekuna/api-mc/internal/models"
 	"github.com/fekuna/api-mc/pkg/utils"
+	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
 )
@@ -89,4 +90,16 @@ func (r *authRepo) FindByName(ctx context.Context, name string, query *utils.Pag
 		HasMore:    utils.GetHasMore(query.GetPage(), totalCount, query.GetSize()),
 		Users:      users,
 	}, nil
+}
+
+// Get user by id
+func (r *authRepo) GetByID(ctx context.Context, userID uuid.UUID) (*models.User, error) {
+	// TODO: tracing
+
+	user := &models.User{}
+	if err := r.db.QueryRowxContext(ctx, getUserQuery, userID).StructScan(user); err != nil {
+		return nil, errors.Wrap(err, "authRepo.GetByID.QueryRowxContext")
+	}
+
+	return user, nil
 }

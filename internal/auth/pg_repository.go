@@ -6,6 +6,7 @@ import (
 
 	"github.com/fekuna/api-mc/internal/models"
 	"github.com/fekuna/api-mc/pkg/utils"
+	"github.com/google/uuid"
 )
 
 // Auth repository interface
@@ -13,4 +14,5 @@ type Repository interface {
 	Register(ctx context.Context, user *models.User) (*models.User, error)
 	FindByEmail(ctx context.Context, user *models.User) (*models.User, error)
 	FindByName(ctx context.Context, name string, query *utils.PaginationQuery) (*models.UsersList, error)
+	GetByID(ctx context.Context, userID uuid.UUID) (*models.User, error)
 }

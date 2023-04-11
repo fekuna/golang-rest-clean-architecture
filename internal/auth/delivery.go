@@ -8,4 +8,5 @@ type Handlers interface {
 	Login() echo.HandlerFunc
 	Logout() echo.HandlerFunc
 	FindByName() echo.HandlerFunc
+	GetMe() echo.HandlerFunc
 }

@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 
 	"github.com/fekuna/api-mc/config"
@@ -10,6 +11,7 @@ import (
 	"github.com/fekuna/api-mc/pkg/httpErrors"
 	"github.com/fekuna/api-mc/pkg/logger"
 	"github.com/fekuna/api-mc/pkg/utils"
+	"github.com/google/uuid"
 	"github.com/pkg/errors"
 )
 
@@ -20,14 +22,15 @@ const (
 
 // Auth UseCase
 type authUC struct {
-	cfg      *config.Config
-	authRepo auth.Repository
-	logger   logger.Logger
+	cfg       *config.Config
+	authRepo  auth.Repository
+	logger    logger.Logger
+	redisRepo auth.RedisRepository
 }
 
 // Auth UseCase constructor
-func NewAuthUseCase(cfg *config.Config, authRepo auth.Repository, log logger.Logger) auth.UseCase {
-	return &authUC{cfg: cfg, authRepo: authRepo, logger: log}
+func NewAuthUseCase(cfg *config.Config, authRepo auth.Repository, log logger.Logger, redisRepo auth.RedisRepository) auth.UseCase {
+	return &authUC{cfg: cfg, authRepo: authRepo, logger: log, redisRepo: redisRepo}
 }
 
 // Create new user
@@ -91,4 +94,34 @@ func (u *authUC) FindByName(ctx context.Context, name string, query *utils.Pagin
 	// TODO: tracing
 
 	return u.authRepo.FindByName(ctx, name, query)
+}
+
+// Get user by id
+func (u *authUC) GetByID(ctx context.Context, userID uuid.UUID) (*models.User, error) {
+	// TODO: tracing
+
+	cachedUser, err := u.redisRepo.GetByIDCtx(ctx, u.GenerateUserKey(userID.String()))
+	if err != nil {
+		u.logger.Errorf("authUC.GetByID.GetByIDCtx: %v", err)
+	}
+	if cachedUser != nil {
+		return cachedUser, nil
+	}
+
+	user, err := u.authRepo.GetByID(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	if err = u.redisRepo.SetUserCtx(ctx, u.GenerateUserKey(userID.String()), cacheDuration, user); err != nil {
+		u.logger.Errorf("authUC.GetByID.SetUserCtx: %v", err)
+	}
+
+	user.SanitizePassword()
+
+	return user, nil
+}
+
+func (u *authUC) GenerateUserKey(userID string) string {
+	return fmt.Sprintf("%s: %s", basePrefix, userID)
 }

@@ -24,9 +24,10 @@ func (s *Server) MapHandlers(e *echo.Echo) error {
 	// Init repositories
 	aRepo := authRepository.NewAuthRepository(s.db)
 	sRepo := sessionRepository.NewSessionRepository(s.redisClient, s.cfg)
+	authRedisRepo := authRepository.NewAuthRedisRepo(s.redisClient)
 
 	// Init useCase
-	authUC := authUseCase.NewAuthUseCase(s.cfg, aRepo, s.logger)
+	authUC := authUseCase.NewAuthUseCase(s.cfg, aRepo, s.logger, authRedisRepo)
 	sessUC := usecase.NewSessionUseCase(sRepo, s.cfg)
 
 	// Init handlers

@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/fekuna/api-mc/config"
+	"github.com/fekuna/api-mc/pkg/httpErrors"
 	"github.com/fekuna/api-mc/pkg/logger"
 	"github.com/labstack/echo/v4"
 )
@@ -45,6 +46,18 @@ func LogResponseError(ctx echo.Context, logger logger.Logger, err error) {
 	)
 }
 
+// Error response with logging error for echo context
+func ErrResponseWithLog(ctx echo.Context, logger logger.Logger, err error) error {
+	logger.Errorf(
+		"ErrResponseWithLog, RequestID: %s, IPAddress: %s, Error: %s",
+		GetRequestID(ctx),
+		GetIPAddress(ctx),
+		err,
+	)
+
+	return ctx.JSON(httpErrors.ErrorResponse(err))
+}
+
 // Configure jwt cookie
 func ConfigureJWTCookie(cfg *config.Config, jwtToken string) *http.Cookie {
 	return &http.Cookie{
@@ -84,3 +97,6 @@ func DeleteSessionCookie(c echo.Context, sessionName string) {
 		MaxAge: -1,
 	})
 }
+
+// UserCtxKey is a key used for the User object in the context
+type UserCtxKey struct{}

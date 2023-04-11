@@ -3,6 +3,7 @@ package http
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 
 	"github.com/fekuna/api-mc/config"
@@ -160,6 +161,7 @@ func (h *authHandlers) FindByName() echo.HandlerFunc {
 
 		if c.QueryParam("name") == "" {
 			utils.LogResponseError(c, h.logger, httpErrors.NewBadRequestError("name is required"))
+			fmt.Println(httpErrors.NewBadRequestError("name is required"))
 			return c.JSON(http.StatusBadRequest, httpErrors.NewBadRequestError("name is required"))
 		}
 
@@ -176,5 +178,28 @@ func (h *authHandlers) FindByName() echo.HandlerFunc {
 		}
 
 		return c.JSON(http.StatusOK, response)
+	}
+}
+
+// GetMe godoc
+// @Summary Get user by id
+// @Description Get current user by id
+// @Tags Auth
+// @Accept json
+// @Produce json
+// @Success 200 {object} models.User
+// @Failure 500 {object} httpErrors.RestError
+// @Router /auth/me [get]
+func (h *authHandlers) GetMe() echo.HandlerFunc {
+	return func(c echo.Context) error {
+		// TODO: tracing
+
+		user, ok := c.Get("user").(*models.User)
+		if !ok {
+			utils.LogResponseError(c, h.logger, httpErrors.NewUnauthorizedError(httpErrors.Unauthorized))
+			return utils.ErrResponseWithLog(c, h.logger, httpErrors.NewUnauthorizedError(httpErrors.Unauthorized))
+		}
+
+		return c.JSON(http.StatusOK, user)
 	}
 }

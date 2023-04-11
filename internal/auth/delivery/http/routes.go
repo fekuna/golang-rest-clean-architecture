@@ -12,4 +12,6 @@ func MapAuthRoutes(authGroup *echo.Group, h auth.Handlers, mw *middleware.Middle
 	authGroup.POST("/login", h.Login())
 	authGroup.POST("/logout", h.Logout())
 	authGroup.GET("/find", h.FindByName())
+	authGroup.Use(mw.AuthSessionMiddleware)
+	authGroup.GET("/me", h.GetMe())
 }
