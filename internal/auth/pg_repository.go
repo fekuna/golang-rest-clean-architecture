@@ -15,4 +15,5 @@ type Repository interface {
 	FindByEmail(ctx context.Context, user *models.User) (*models.User, error)
 	FindByName(ctx context.Context, name string, query *utils.PaginationQuery) (*models.UsersList, error)
 	GetByID(ctx context.Context, userID uuid.UUID) (*models.User, error)
+	Update(ctx context.Context, user *models.User) (*models.User, error)
 }

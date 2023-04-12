@@ -26,11 +26,12 @@ type authUC struct {
 	authRepo  auth.Repository
 	logger    logger.Logger
 	redisRepo auth.RedisRepository
+	awsRepo   auth.AWSRepository
 }
 
 // Auth UseCase constructor
-func NewAuthUseCase(cfg *config.Config, authRepo auth.Repository, log logger.Logger, redisRepo auth.RedisRepository) auth.UseCase {
-	return &authUC{cfg: cfg, authRepo: authRepo, logger: log, redisRepo: redisRepo}
+func NewAuthUseCase(cfg *config.Config, authRepo auth.Repository, log logger.Logger, redisRepo auth.RedisRepository, awsRepo auth.AWSRepository) auth.UseCase {
+	return &authUC{cfg: cfg, authRepo: authRepo, logger: log, redisRepo: redisRepo, awsRepo: awsRepo}
 }
 
 // Create new user
@@ -124,4 +125,32 @@ func (u *authUC) GetByID(ctx context.Context, userID uuid.UUID) (*models.User, e
 
 func (u *authUC) GenerateUserKey(userID string) string {
 	return fmt.Sprintf("%s: %s", basePrefix, userID)
+}
+
+// Upload user avatar
+func (u *authUC) UploadAvatar(ctx context.Context, userID uuid.UUID, file models.UploadInput) (*models.User, error) {
+	// TODO: tracing
+
+	uploadInfo, err := u.awsRepo.PutObject(ctx, file)
+	if err != nil {
+		return nil, httpErrors.NewInternalServerError(errors.Wrap(err, "authUC.UploadAvatar.PutObject"))
+	}
+
+	avatarURL := u.generateAWSMinioURL(file.BucketName, uploadInfo.Key)
+
+	updatedUser, err := u.authRepo.Update(ctx, &models.User{
+		UserID: userID,
+		Avatar: &avatarURL,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	updatedUser.SanitizePassword()
+
+	return updatedUser, nil
+}
+
+func (u *authUC) generateAWSMinioURL(bucket string, key string) string {
+	return fmt.Sprintf("%s/minio/%s/%s", u.cfg.AWS.MinioEndpoint, bucket, key)
 }

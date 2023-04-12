@@ -1,12 +1,14 @@
 package utils
 
 import (
+	"mime/multipart"
 	"net/http"
 
 	"github.com/fekuna/api-mc/config"
 	"github.com/fekuna/api-mc/pkg/httpErrors"
 	"github.com/fekuna/api-mc/pkg/logger"
 	"github.com/labstack/echo/v4"
+	"github.com/pkg/errors"
 )
 
 // Get request id from echo context
@@ -34,6 +36,20 @@ func ReadRequest(ctx echo.Context, request interface{}) error {
 		return err
 	}
 	return validate.StructCtx(ctx.Request().Context(), request)
+}
+
+func ReadImage(ctx echo.Context, field string) (*multipart.FileHeader, error) {
+	image, err := ctx.FormFile(field)
+	if err != nil {
+		return nil, errors.WithMessage(err, "ctx.FormFile")
+	}
+
+	// Check content type of image
+	if err = CheckImageContentType(image); err != nil {
+		return nil, err
+	}
+
+	return image, nil
 }
 
 // Error response with logging error for echo context
@@ -100,3 +116,26 @@ func DeleteSessionCookie(c echo.Context, sessionName string) {
 
 // UserCtxKey is a key used for the User object in the context
 type UserCtxKey struct{}
+
+var allowedImagesContentTypes = map[string]string{
+	"image/bmp":                "bmp",
+	"image/gif":                "gif",
+	"image/png":                "png",
+	"image/jpeg":               "jpeg",
+	"image/jpg":                "jpg",
+	"image/svg+xml":            "svg",
+	"image/webp":               "webp",
+	"image/tiff":               "tiff",
+	"image/vnd.microsoft.icon": "ico",
+}
+
+func CheckImageFileContentType(fileContent []byte) (string, error) {
+	contentType := http.DetectContentType(fileContent)
+
+	extension, ok := allowedImagesContentTypes[contentType]
+	if !ok {
+		return "", errors.New("this content type is not allowed")
+	}
+
+	return extension, nil
+}

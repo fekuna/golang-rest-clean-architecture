@@ -103,3 +103,15 @@ func (r *authRepo) GetByID(ctx context.Context, userID uuid.UUID) (*models.User,
 
 	return user, nil
 }
+
+// Update existing user
+func (r *authRepo) Update(ctx context.Context, user *models.User) (*models.User, error) {
+	// TODO: tracing
+
+	u := &models.User{}
+	if err := r.db.GetContext(ctx, u, updateUserQuery, &user.FirstName, &user.LastName, &user.Email, &user.Role, &user.About, &user.Avatar, &user.PhoneNumber, &user.Address, &user.City, &user.Gender, &user.Postcode, &user.Birthday, &user.UserID); err != nil {
+		return nil, errors.Wrap(err, "authRepo.Update.GetContext")
+	}
+
+	return u, nil
+}

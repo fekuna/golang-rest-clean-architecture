@@ -9,4 +9,6 @@ type Handlers interface {
 	Logout() echo.HandlerFunc
 	FindByName() echo.HandlerFunc
 	GetMe() echo.HandlerFunc
+	GetCSRFToken() echo.HandlerFunc
+	UploadAvatar() echo.HandlerFunc
 }
