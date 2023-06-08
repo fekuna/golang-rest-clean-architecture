@@ -26,6 +26,8 @@ main
 .idea
 pgdata
 vendor
+tmp
+.local
 
 # Avatars storage directory
 avatars/

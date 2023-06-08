@@ -6,13 +6,19 @@ import (
 
 	"github.com/fekuna/go-rest-clean-architecture/config"
 	"github.com/fekuna/go-rest-clean-architecture/internal/server"
-	"github.com/fekuna/go-rest-clean-architecture/pkg/db/aws"
+	"github.com/fekuna/go-rest-clean-architecture/pkg/db/minioS3"
 	"github.com/fekuna/go-rest-clean-architecture/pkg/db/postgres"
-	"github.com/fekuna/go-rest-clean-architecture/pkg/db/redis"
 	"github.com/fekuna/go-rest-clean-architecture/pkg/logger"
 	"github.com/fekuna/go-rest-clean-architecture/pkg/utils"
 )
 
+// @title Go Example REST API
+// @version 1.0
+// @description Example Golang REST API
+// @contact_name Alfan Almunawar
+// @contact_url https://github.com/fekuna
+// @contact_email almunawar.alfan@gmail.com
+// @BasePath /api/v1
 func main() {
 	log.Println("Starting api server")
 
@@ -31,27 +37,20 @@ func main() {
 	appLogger := logger.NewApiLogger(cfg)
 
 	appLogger.InitLogger()
-	appLogger.Infof("AppVersion: %s, LogLevel: %s, Mode: %s, SSL: %v", cfg.Server.AppVersion, cfg.Logger.Level, cfg.Server.Mode, cfg.Server.SSL)
+	appLogger.Infof("AppVersion: %s, LogLeve: %s, Mode: %s, SSL: %v", cfg.Server.AppVersion, cfg.Logger.Level, cfg.Server.Mode, cfg.Server.SSL)
 
+	// psqlDB, err
 	psqlDB, err := postgres.NewPsqlDB(cfg)
 	if err != nil {
 		appLogger.Fatalf("Postgresql init: %s", err)
 	} else {
-		appLogger.Infof("Postgres connected, Status: %#v", psqlDB.Stats())
+		appLogger.Infof("Postgresql connected, Status: %#v", psqlDB.Stats())
 	}
 	defer psqlDB.Close()
 
-	redisClient := redis.NewRedisClient(cfg)
-	defer redisClient.Close()
-	appLogger.Info("Redis Connected")
+	minioClient, err := minioS3.NewMinioS3Client(cfg.Minio.Endpoint, cfg.Minio.MinioAccessKey, cfg.Minio.MinioSecretKey, cfg.Minio.UseSSL)
 
-	awsClient, err := aws.NewAWSClient(cfg.AWS.Endpoint, cfg.AWS.MinioAccessKey, cfg.AWS.MinioSecretkey, cfg.AWS.UseSSL)
-	if err != nil {
-		appLogger.Error("AWS Client init: %s", err)
-	}
-	appLogger.Info("AWS Client S3 connected")
-
-	s := server.NewServer(cfg, psqlDB, redisClient, awsClient, appLogger)
+	s := server.NewServer(cfg, appLogger, psqlDB, minioClient)
 	if err = s.Run(); err != nil {
 		log.Fatal(err)
 	}

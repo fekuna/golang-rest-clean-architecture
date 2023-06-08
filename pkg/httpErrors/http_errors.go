@@ -3,22 +3,13 @@ package httpErrors
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 	"strings"
 )
 
 const (
-	ErrBadRequest         = "Bad request"
 	ErrEmailAlreadyExists = "User with given email already exists"
-	ErrNoSuchUser         = "User not found"
-	ErrWrongCredentials   = "Wrong Credentials"
-	ErrNotFound           = "Not Found"
-	ErrUnauthorized       = "Unauthorized"
-	ErrForbidden          = "Forbidden"
-	ErrBadQueryParams     = "Invalid query params"
 )
 
 var (
@@ -42,7 +33,7 @@ var (
 	NoCookie              = errors.New("not found cookie header")
 )
 
-// Rest error interface
+// Rest Err Interface
 type RestErr interface {
 	Status() int
 	Error() string
@@ -56,19 +47,25 @@ type RestError struct {
 	ErrCauses interface{} `json:"-"`
 }
 
-// Error Error() interface method
-func (e RestError) Error() string {
-	return fmt.Sprintf("status: %d - errors: %s - causes: %v", e.ErrStatus, e.ErrError, e.ErrCauses)
-}
-
-// Error status
 func (e RestError) Status() int {
 	return e.ErrStatus
 }
 
-// RestError Causes
+func (e RestError) Error() string {
+	return e.ErrError
+}
+
 func (e RestError) Causes() interface{} {
 	return e.ErrCauses
+}
+
+// New Bad Request
+func NewBadRequestError(causes interface{}) RestErr {
+	return RestError{
+		ErrStatus: http.StatusBadRequest,
+		ErrError:  BadRequest.Error(),
+		ErrCauses: causes,
+	}
 }
 
 // New Rest Error
@@ -89,32 +86,15 @@ func NewRestErrorWithMessage(status int, err string, causes interface{}) RestErr
 	}
 }
 
-// New Rest Error From Bytes
-func NewRestErrorFromBytes(bytes []byte) (RestErr, error) {
-	var apiErr RestError
-	if err := json.Unmarshal(bytes, &apiErr); err != nil {
-		return nil, errors.New("invalid json")
-	}
-
-	return apiErr, nil
-}
-
-// New Bad Request Error
-func NewBadRequestError(causes interface{}) RestErr {
-	return RestError{
-		ErrStatus: http.StatusBadRequest,
-		ErrError:  BadRequest.Error(),
+// New Internal Server Error
+func NewInternalServerError(causes interface{}) RestErr {
+	result := RestError{
+		ErrStatus: http.StatusInternalServerError,
+		ErrError:  InternalServerError.Error(),
 		ErrCauses: causes,
 	}
-}
 
-// New Not Found Error
-func NewNotFoundError(causes interface{}) RestErr {
-	return RestError{
-		ErrStatus: http.StatusNotFound,
-		ErrError:  NotFound.Error(),
-		ErrCauses: causes,
-	}
+	return result
 }
 
 // New Unauthorized Error
@@ -126,26 +106,8 @@ func NewUnauthorizedError(causes interface{}) RestErr {
 	}
 }
 
-// New Forbidden Error
-func NewForbiddenError(causes interface{}) RestErr {
-	return RestError{
-		ErrStatus: http.StatusForbidden,
-		ErrError:  Forbidden.Error(),
-		ErrCauses: causes,
-	}
-}
-
-// New Internal Server Error
-func NewInternalServerError(causes interface{}) RestErr {
-	return RestError{
-		ErrStatus: http.StatusInternalServerError,
-		ErrError:  InternalServerError.Error(),
-		ErrCauses: causes,
-	}
-}
-
 // Parser of error string messages returns RestError
-func ParseErrors(err error) RestErr {
+func ParseError(err error) RestErr {
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
 		return NewRestError(http.StatusNotFound, NotFound.Error(), err)
@@ -195,5 +157,5 @@ func parseValidatorError(err error) RestErr {
 
 // Error response
 func ErrorResponse(err error) (int, interface{}) {
-	return ParseErrors(err).Status(), ParseErrors(err)
+	return ParseError(err).Status(), ParseError(err)
 }

@@ -6,7 +6,6 @@ import (
 	"net/textproto"
 
 	"github.com/fekuna/go-rest-clean-architecture/pkg/httpErrors"
-	"github.com/google/uuid"
 )
 
 var allowedImagesContentType = map[string]string{
@@ -20,6 +19,7 @@ func determineFileContentType(fileHeader textproto.MIMEHeader) (string, error) {
 	if len(contentTypes) < 1 {
 		return "", httpErrors.NotAllowedImageHeader
 	}
+
 	return contentTypes[0], nil
 }
 
@@ -44,7 +44,6 @@ func CheckImageContentType(image *multipart.FileHeader) error {
 	if !IsAllowedImageContentType(fileHeader) {
 		return httpErrors.NotAllowedImageHeader
 	}
-
 	return nil
 }
 
@@ -67,10 +66,4 @@ func GetImageContentType(image []byte) (string, bool) {
 func IsAllowedImageContentType(image []byte) bool {
 	_, allowed := GetImageContentType(image)
 	return allowed
-}
-
-func GetUniqFileName(userID string, fileExtension string) string {
-	randString := uuid.New().String()
-
-	return "userid_" + userID + "_" + randString + "." + fileExtension
 }

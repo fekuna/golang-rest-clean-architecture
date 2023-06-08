@@ -54,4 +54,11 @@ CREATE TABLE comments
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE sessions (
+    session_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    refresh_token VARCHAR(250) NOT NULL,
+    expires_at TIMESTAMP NOT NULL,
+    user_id UUID NOT NULL REFERENCES users (user_id) ON DELETE CASCADE
+);
+
 CREATE INDEX IF NOT EXISTS news_title_id_idx ON news (title);

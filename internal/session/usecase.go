@@ -1,4 +1,3 @@
-//go:generate mockgen -source usecase.go -destination mock/usecase_mock.go -package mock
 package session
 
 import (
@@ -7,9 +6,7 @@ import (
 	"github.com/fekuna/go-rest-clean-architecture/internal/models"
 )
 
-// Session use case
-type UCSession interface {
-	CreateSession(ctx context.Context, session *models.Session, expire int) (string, error)
-	GetSessionByID(ctx context.Context, sessionID string) (*models.Session, error)
-	DeleteByID(ctx context.Context, sessionID string) error
+type UseCase interface {
+	CreateSession(ctx context.Context, session *models.Session) (*models.Session, error)
+	UpsertSession(ctx context.Context, session *models.Session) (*models.Session, error)
 }

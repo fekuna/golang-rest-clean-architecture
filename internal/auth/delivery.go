@@ -6,10 +6,7 @@ import "github.com/labstack/echo/v4"
 type Handlers interface {
 	Register() echo.HandlerFunc
 	Login() echo.HandlerFunc
-	Logout() echo.HandlerFunc
-	FindByName() echo.HandlerFunc
-	GetUsers() echo.HandlerFunc
-	GetUserByID() echo.HandlerFunc
-	GetCSRFToken() echo.HandlerFunc
+	GetMe() echo.HandlerFunc
 	UploadAvatar() echo.HandlerFunc
+	GetAvatar() echo.HandlerFunc
 }

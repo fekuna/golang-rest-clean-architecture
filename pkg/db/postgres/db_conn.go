@@ -5,12 +5,13 @@ import (
 	"time"
 
 	"github.com/fekuna/go-rest-clean-architecture/config"
-	_ "github.com/jackc/pgx/stdlib" // pgx driver
 	"github.com/jmoiron/sqlx"
+
+	_ "github.com/jackc/pgx/stdlib"
 )
 
 const (
-	maxOpenConns    = 60
+	maxOpensConns   = 60
 	connMaxLifetime = 120
 	maxIdleConns    = 30
 	connMaxIdleTime = 20
@@ -21,7 +22,7 @@ func NewPsqlDB(c *config.Config) (*sqlx.DB, error) {
 	dataSourceName := fmt.Sprintf("host=%s port=%s user=%s dbname=%s sslmode=disable password=%s",
 		c.Postgres.PostgresqlHost,
 		c.Postgres.PostgresqlPort,
-		c.Postgres.PostgresqlUser,
+		c.Postgres.PostgresqlUsername,
 		c.Postgres.PostgresqlDbName,
 		c.Postgres.PostgresqlPassword,
 	)
@@ -31,7 +32,7 @@ func NewPsqlDB(c *config.Config) (*sqlx.DB, error) {
 		return nil, err
 	}
 
-	db.SetMaxOpenConns(maxOpenConns)
+	db.SetMaxOpenConns(maxOpensConns)
 	db.SetConnMaxLifetime(connMaxLifetime * time.Second)
 	db.SetMaxIdleConns(maxIdleConns)
 	db.SetConnMaxIdleTime(connMaxIdleTime * time.Second)

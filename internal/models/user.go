@@ -30,7 +30,18 @@ type User struct {
 	LoginDate   time.Time  `json:"login_date" db:"login_date" redis:"login_date"`
 }
 
-// Hash user password with bcrypt
+type AuthToken struct {
+	AccesToken   string `json:"access_token"`
+	RefreshToken string `json:"refresh_token"`
+}
+
+// Find user query
+type UserWithToken struct {
+	User  *User     `json:"user"`
+	Token AuthToken `json:"token"`
+}
+
+// Hash password
 func (u *User) HashPassword() error {
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(u.Password), bcrypt.DefaultCost)
 	if err != nil {
@@ -41,7 +52,7 @@ func (u *User) HashPassword() error {
 }
 
 // Compare user password and payload
-func (u *User) ComparePasswords(password string) error {
+func (u *User) ComparePassword(password string) error {
 	if err := bcrypt.CompareHashAndPassword([]byte(u.Password), []byte(password)); err != nil {
 		return err
 	}
@@ -49,15 +60,10 @@ func (u *User) ComparePasswords(password string) error {
 	return nil
 }
 
-// Sanitize user password
-func (u *User) SanitizePassword() {
-	u.Password = ""
-}
-
 // Prepare user for register
 func (u *User) PrepareCreate() error {
 	u.Email = strings.ToLower(strings.TrimSpace(u.Email))
-	u.Password = strings.ToLower(u.Password)
+	u.Password = strings.TrimSpace(u.Password)
 
 	if err := u.HashPassword(); err != nil {
 		return err
@@ -66,39 +72,16 @@ func (u *User) PrepareCreate() error {
 	if u.PhoneNumber != nil {
 		*u.PhoneNumber = strings.TrimSpace(*u.PhoneNumber)
 	}
-	if u.Role != nil {
-		*u.Role = strings.ToLower(strings.TrimSpace(*u.Role))
-	}
-	return nil
-}
-
-// Prepare user for update user
-func (u *User) PrepareUpdate() error {
-	u.Email = strings.ToLower(strings.TrimSpace(u.Email))
-
-	if u.PhoneNumber != nil {
-		*u.PhoneNumber = strings.TrimSpace(*u.PhoneNumber)
-	}
 
 	if u.Role != nil {
-		*u.Role = strings.ToLower(strings.TrimSpace(*u.Role))
+		*u.Role = strings.TrimSpace(*u.Role)
 	}
 
 	return nil
+
 }
 
-// All Users response
-type UsersList struct {
-	TotalCount int     `json:"total_count"`
-	TotalPages int     `json:"total_pages"`
-	Page       int     `json:"page"`
-	Size       int     `json:"size"`
-	HasMore    bool    `json:"has_more"`
-	Users      []*User `json:"users"`
-}
-
-// Find user query
-type UserWithToken struct {
-	User  *User  `json:"user"`
-	Token string `json:"token"`
+// Sanitize user password
+func (u *User) SanitizePassword() {
+	u.Password = ""
 }

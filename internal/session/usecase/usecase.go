@@ -2,36 +2,48 @@ package usecase
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 
 	"github.com/fekuna/go-rest-clean-architecture/config"
 	"github.com/fekuna/go-rest-clean-architecture/internal/models"
 	"github.com/fekuna/go-rest-clean-architecture/internal/session"
+	"github.com/fekuna/go-rest-clean-architecture/pkg/logger"
 )
 
-// Session use case
-type sessionUC struct {
-	sessionRepo session.SessRepository
+type SessionUC struct {
 	cfg         *config.Config
+	logger      logger.Logger
+	sessionRepo session.Repository
 }
 
-func NewSessionUseCase(sessionRepo session.SessRepository, cfg *config.Config) session.UCSession {
-	return &sessionUC{sessionRepo: sessionRepo, cfg: cfg}
+func NewSessionUseCase(cfg *config.Config, logger logger.Logger, sessionRepo session.Repository) session.UseCase {
+	return &SessionUC{
+		cfg:         cfg,
+		logger:      logger,
+		sessionRepo: sessionRepo,
+	}
 }
 
-// Create new session
-func (u *sessionUC) CreateSession(ctx context.Context, session *models.Session, expire int) (string, error) {
-	// TODO: OPEN TRACING
-	return u.sessionRepo.CreateSession(ctx, session, expire)
+func (s *SessionUC) CreateSession(ctx context.Context, session *models.Session) (*models.Session, error) {
+	// TODO: Tracing
+
+	return s.sessionRepo.CreateSession(ctx, session)
 }
 
-// Delete session by id
-func (u *sessionUC) DeleteByID(ctx context.Context, sessionID string) error {
-	// TODO: Open Tracing
-	return u.sessionRepo.DeleteByID(ctx, sessionID)
-}
+func (s *SessionUC) UpsertSession(ctx context.Context, session *models.Session) (*models.Session, error) {
+	// TODO: tracing
 
-// get session by id
-func (u *sessionUC) GetSessionByID(ctx context.Context, sessionID string) (*models.Session, error) {
-	// TODO: Open Tracing
-	return u.sessionRepo.GetSessionByID(ctx, sessionID)
+	_, err := s.sessionRepo.FindSessionByUserId(ctx, session)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return nil, err
+	}
+
+	// If No Data found. we insert it
+	if errors.Is(err, sql.ErrNoRows) {
+		return s.sessionRepo.CreateSession(ctx, session)
+	} else {
+		// update session if user has session
+		return s.sessionRepo.UpdateSessionByUserId(ctx, session)
+	}
 }

@@ -9,14 +9,23 @@ import (
 
 // Middleware manager
 type MiddlewareManager struct {
-	sessUC  session.UCSession
-	authUC  auth.UseCase
-	cfg     *config.Config
-	origins []string
-	logger  logger.Logger
+	cfg    *config.Config
+	logger logger.Logger
+	sessUC session.UseCase
+	authUC auth.UseCase
 }
 
 // Middleware manager constructor
-func NewMiddlewareManager(sessUC session.UCSession, authUC auth.UseCase, cfg *config.Config, origins []string, logger logger.Logger) *MiddlewareManager {
-	return &MiddlewareManager{sessUC: sessUC, authUC: authUC, cfg: cfg, origins: origins, logger: logger}
+func NewMiddlewareManager(
+	cfg *config.Config,
+	logger logger.Logger,
+	sessUC session.UseCase,
+	authUC auth.UseCase,
+) *MiddlewareManager {
+	return &MiddlewareManager{
+		cfg:    cfg,
+		logger: logger,
+		sessUC: sessUC,
+		authUC: authUC,
+	}
 }

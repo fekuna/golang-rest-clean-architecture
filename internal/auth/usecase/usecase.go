@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
+	"time"
 
 	"github.com/fekuna/go-rest-clean-architecture/config"
 	"github.com/fekuna/go-rest-clean-architecture/internal/auth"
@@ -15,32 +17,30 @@ import (
 	"github.com/pkg/errors"
 )
 
-const (
-	basePrefix    = "api-auth:"
-	cacheDuration = 3600
-)
-
-// Auth UseCase
+// Auth Usecase
 type authUC struct {
 	cfg       *config.Config
-	authRepo  auth.Repository
-	redisRepo auth.RedisRepository
-	awsRepo   auth.AWSRepository
 	logger    logger.Logger
+	authRepo  auth.Repository
+	minioRepo auth.MinioRepository
 }
 
-// Auth UseCase constructor
-func NewAuthUseCase(cfg *config.Config, authRepo auth.Repository, redisRepo auth.RedisRepository, awsRepo auth.AWSRepository, log logger.Logger) auth.UseCase {
-	return &authUC{cfg: cfg, authRepo: authRepo, redisRepo: redisRepo, awsRepo: awsRepo, logger: log}
+// Auth usecase constructor
+func NewAuthUseCase(cfg *config.Config, logger logger.Logger, authRepo auth.Repository, minioRepo auth.MinioRepository) auth.UseCase {
+	return &authUC{
+		cfg:       cfg,
+		logger:    logger,
+		authRepo:  authRepo,
+		minioRepo: minioRepo,
+	}
 }
 
-// Create new user
 func (u *authUC) Register(ctx context.Context, user *models.User) (*models.UserWithToken, error) {
-	// TODO: open tracing
+	// TODO: Tracing
 
 	existsUser, err := u.authRepo.FindByEmail(ctx, user)
 	if existsUser != nil || err == nil {
-		return nil, httpErrors.NewRestErrorWithMessage(http.StatusBadRequest, httpErrors.ErrEmailAlreadyExists, nil)
+		return nil, httpErrors.NewRestErrorWithMessage(http.StatusBadRequest, httpErrors.ErrEmailAlreadyExists, err)
 	}
 
 	if err = user.PrepareCreate(); err != nil {
@@ -51,103 +51,71 @@ func (u *authUC) Register(ctx context.Context, user *models.User) (*models.UserW
 	if err != nil {
 		return nil, err
 	}
+
 	createdUser.SanitizePassword()
 
-	token, err := utils.GenerateJWTToken(createdUser, u.cfg)
+	accessToken, err := utils.GenerateJWTToken(createdUser, u.cfg, time.Minute*30)
 	if err != nil {
-		return nil, httpErrors.NewInternalServerError(errors.Wrap(err, "authUC.Register.GenerateJWTToken"))
+		return nil, httpErrors.NewInternalServerError(errors.Wrap(err, "authUC.Register.AccessToken.GenerateJWTTOken"))
+	}
+
+	refreshToken, err := utils.GenerateJWTToken(createdUser, u.cfg, (time.Hour*24)*30)
+	if err != nil {
+		return nil, httpErrors.NewInternalServerError(errors.Wrap(err, "authUC.Register.RefreshToken.GenerateJWTTOken"))
+	}
+
+	authToken := models.AuthToken{
+		AccesToken:   accessToken,
+		RefreshToken: refreshToken,
 	}
 
 	return &models.UserWithToken{
 		User:  createdUser,
-		Token: token,
+		Token: authToken,
 	}, nil
 }
 
-// Update existing user
-func (u *authUC) Update(ctx context.Context, user *models.User) (*models.User, error) {
-	// TODO: Open Tracing
-
-	if err := user.PrepareUpdate(); err != nil {
-		return nil, httpErrors.NewBadRequestError(errors.Wrap(err, "authUC.Register.PrepareUpdate"))
-	}
-
-	updatedUser, err := u.authRepo.Update(ctx, user)
-	if err != nil {
-		return nil, err
-	}
-
-	updatedUser.SanitizePassword()
-
-	if err = u.redisRepo.DeleteUserCtx(ctx, u.GenerateUserKey(user.UserID.String())); err != nil {
-		u.logger.Errorf("AuthUC.Update.DeleteUserCtx: %s", err)
-	}
-
-	updatedUser.SanitizePassword()
-
-	return updatedUser, nil
-}
-
-// Login user, returns user model with jwt token
 func (u *authUC) Login(ctx context.Context, user *models.User) (*models.UserWithToken, error) {
-	// TODO: open tracing
+	// TODO: tracing
 
-	fmt.Println("authUC.GetUsers")
 	foundUser, err := u.authRepo.FindByEmail(ctx, user)
 	if err != nil {
 		return nil, err
 	}
 
-	if err = foundUser.ComparePasswords(user.Password); err != nil {
-		return nil, httpErrors.NewUnauthorizedError(errors.Wrap(err, "authUC.GetUsers.ComparePasswords"))
+	if err = foundUser.ComparePassword(user.Password); err != nil {
+		return nil, httpErrors.NewUnauthorizedError(errors.Wrap(err, "authUC.GetUsers.ComparePassword"))
 	}
 
 	foundUser.SanitizePassword()
 
-	token, err := utils.GenerateJWTToken(foundUser, u.cfg)
+	accessToken, err := utils.GenerateJWTToken(foundUser, u.cfg, time.Minute*30)
 	if err != nil {
-		return nil, httpErrors.NewInternalServerError(errors.Wrap(err, "authUC.GetUsers.GenerateJWTToken"))
+		return nil, httpErrors.NewInternalServerError(errors.Wrap(err, "authUC.Register.AccessToken.GenerateJWTToken"))
+	}
+
+	refreshToken, err := utils.GenerateJWTToken(foundUser, u.cfg, (time.Hour*24)*30)
+	if err != nil {
+		return nil, httpErrors.NewInternalServerError(errors.Wrap(err, "authUC.Register.RefreshToken.GenerateJWTToken"))
+	}
+
+	authToken := models.AuthToken{
+		AccesToken:   accessToken,
+		RefreshToken: refreshToken,
 	}
 
 	return &models.UserWithToken{
 		User:  foundUser,
-		Token: token,
+		Token: authToken,
 	}, nil
 }
 
-// Find users by name
-func (u *authUC) FindByName(ctx context.Context, name string, query *utils.PaginationQuery) (*models.UsersList, error) {
-	// TODO: Open Tracing
-	return u.authRepo.FindByName(ctx, name, query)
-}
-
-// Get users with paginate
-func (u *authUC) GetUsers(ctx context.Context, pq *utils.PaginationQuery) (*models.UsersList, error) {
-	// TODO: Open Tracing
-
-	return u.authRepo.GetUsers(ctx, pq)
-}
-
-// Get user by ID
 func (u *authUC) GetByID(ctx context.Context, userID uuid.UUID) (*models.User, error) {
-	// TODO: Open Tracing
-	cachedUser, err := u.redisRepo.GetByIDCtx(ctx, u.GenerateUserKey(userID.String()))
-	if err != nil {
-		u.logger.Errorf("authUC.GetByID.GetByIDCtx: %v", err)
-	}
+	// TODO: tracing
 
-	if cachedUser != nil {
-		return cachedUser, nil
-	}
-
-	fmt.Println("Auth Repo Get By ID")
 	user, err := u.authRepo.GetByID(ctx, userID)
 	if err != nil {
 		return nil, err
-	}
-
-	if err = u.redisRepo.SetUserCtx(ctx, u.GenerateUserKey(userID.String()), cacheDuration, user); err != nil {
-		u.logger.Errorf("authUC.GetByID.SetUserCtx: %v", err)
 	}
 
 	user.SanitizePassword()
@@ -157,25 +125,21 @@ func (u *authUC) GetByID(ctx context.Context, userID uuid.UUID) (*models.User, e
 
 // Upload user avatar
 func (u *authUC) UploadAvatar(ctx context.Context, userID uuid.UUID, file models.UploadInput) (*models.User, error) {
-	// TODO: Open Tracing
+	// TODO: Tracing
 
-	fmt.Println("owkowkwok 1")
-	uploadInfo, err := u.awsRepo.PutObject(ctx, file)
-	fmt.Println("owkowkwok 2")
+	uploadInfo, err := u.minioRepo.PutObject(ctx, file)
 	if err != nil {
+		u.logger.Errorf("AuthUC.Update.UploadAvatar: %s", err)
 		return nil, httpErrors.NewInternalServerError(errors.Wrap(err, "authUC.UploadAvatar.PutObject"))
 	}
 
-	fmt.Println("owkowkwok 3")
-	avatarURL := u.generateAWSMinioURL(file.BucketName, uploadInfo.Key)
+	avatarURL := u.generateMinioURL(file.BucketName, uploadInfo.Key)
 
-	fmt.Println("owkowkwok 4")
 	updatedUser, err := u.authRepo.Update(ctx, &models.User{
 		UserID: userID,
 		Avatar: &avatarURL,
 	})
 	if err != nil {
-		fmt.Println("owkowkwok error 1")
 		return nil, err
 	}
 
@@ -184,12 +148,10 @@ func (u *authUC) UploadAvatar(ctx context.Context, userID uuid.UUID, file models
 	return updatedUser, nil
 }
 
-// Generate User Key
-func (u *authUC) GenerateUserKey(userID string) string {
-	return fmt.Sprintf("%s: %s", basePrefix, userID)
+func (u *authUC) GetAvatar(ctx context.Context) (*url.URL, error) {
+	return u.minioRepo.GetObjectUrl(ctx, "static", "static/pathnich/6b2dba16-c2eb-4cce-89c1-7d2b4c5368fa-camera_lense_0.jpeg", time.Hour*24*7)
 }
 
-// Generate AWS minio URL
-func (u *authUC) generateAWSMinioURL(bucket string, key string) string {
-	return fmt.Sprintf("%s/minio/%s/%s", u.cfg.AWS.MinioEndpoint, bucket, key)
+func (u *authUC) generateMinioURL(bucket string, key string) string {
+	return fmt.Sprintf("%s/%s/%s", u.cfg.Minio.Endpoint, bucket, key)
 }

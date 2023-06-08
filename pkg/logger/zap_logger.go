@@ -8,7 +8,7 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-// Logger methods interface
+// Logger method interface
 type Logger interface {
 	InitLogger()
 	Debug(args ...interface{})
@@ -33,9 +33,7 @@ type apiLogger struct {
 
 // App Logger constructor
 func NewApiLogger(cfg *config.Config) *apiLogger {
-	return &apiLogger{
-		cfg: cfg,
-	}
+	return &apiLogger{cfg: cfg}
 }
 
 // For mapping config logger to app logger levels
@@ -45,7 +43,7 @@ var loggerLevelMap = map[string]zapcore.Level{
 	"warn":   zapcore.WarnLevel,
 	"error":  zapcore.ErrorLevel,
 	"dpanic": zapcore.DPanicLevel,
-	"panic":  zapcore.PanicLevel,
+	"panic":  zapcore.DPanicLevel,
 	"fatal":  zapcore.FatalLevel,
 }
 
@@ -62,7 +60,7 @@ func (l *apiLogger) getLoggerLevel(cfg *config.Config) zapcore.Level {
 func (l *apiLogger) InitLogger() {
 	logLevel := l.getLoggerLevel(l.cfg)
 
-	logWriter := zapcore.AddSync(os.Stderr)
+	logWriter := zapcore.AddSync(os.Stdout)
 
 	var encoderCfg zapcore.EncoderConfig
 	if l.cfg.Server.Mode == "Development" {
@@ -95,7 +93,6 @@ func (l *apiLogger) InitLogger() {
 }
 
 // Logger methods
-
 func (l *apiLogger) Debug(args ...interface{}) {
 	l.sugarLogger.Debug(args...)
 }
@@ -131,6 +128,7 @@ func (l *apiLogger) Errorf(template string, args ...interface{}) {
 func (l *apiLogger) DPanic(args ...interface{}) {
 	l.sugarLogger.DPanic(args...)
 }
+
 func (l *apiLogger) DPanicf(template string, args ...interface{}) {
 	l.sugarLogger.DPanicf(template, args...)
 }
