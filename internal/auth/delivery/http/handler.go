@@ -13,6 +13,7 @@ import (
 	"github.com/fekuna/go-rest-clean-architecture/internal/models"
 	"github.com/fekuna/go-rest-clean-architecture/internal/session"
 	"github.com/fekuna/go-rest-clean-architecture/pkg/httpErrors"
+	"github.com/fekuna/go-rest-clean-architecture/pkg/httpResponse"
 	"github.com/fekuna/go-rest-clean-architecture/pkg/logger"
 	"github.com/fekuna/go-rest-clean-architecture/pkg/utils"
 	"github.com/google/uuid"
@@ -52,13 +53,15 @@ func (h *authHandlers) Register() echo.HandlerFunc {
 		user := &models.User{}
 		if err := utils.ReadRequest(c, user); err != nil {
 			utils.LogResponseError(c, h.logger, err)
-			return c.JSON(httpErrors.ErrorResponse(err))
+			// return c.JSON(httpErrors.ErrorResponse(err))
+			return httpResponse.Error(c, err)
 		}
 
 		createdUser, err := h.authUC.Register(ctx, user)
 		if err != nil {
 			utils.LogResponseError(c, h.logger, err)
-			return c.JSON(httpErrors.ErrorResponse(err))
+			// return c.JSON(httpErrors.ErrorResponse(err))
+			return httpResponse.Error(c, err)
 		}
 
 		session := &models.Session{
@@ -70,10 +73,12 @@ func (h *authHandlers) Register() echo.HandlerFunc {
 		_, err = h.sessUC.CreateSession(ctx, session)
 		if err != nil {
 			utils.LogResponseError(c, h.logger, err)
-			return c.JSON(httpErrors.ErrorResponse(err))
+			// return c.JSON(httpErrors.ErrorResponse(err))
+			return httpResponse.Error(c, err)
 		}
 
-		return c.JSON(http.StatusCreated, createdUser)
+		// return c.JSON(http.StatusCreated, createdUser)
+		return httpResponse.Success(c, http.StatusCreated, createdUser.Token, "Success created user")
 	}
 }
 
@@ -97,7 +102,8 @@ func (h *authHandlers) Login() echo.HandlerFunc {
 		login := &Login{}
 		if err := utils.ReadRequest(c, login); err != nil {
 			utils.LogResponseError(c, h.logger, err)
-			return c.JSON(httpErrors.ErrorResponse(err))
+			// return c.JSON(httpErrors.ErrorResponse(err))
+			return httpResponse.Error(c, err)
 		}
 
 		userWithToken, err := h.authUC.Login(ctx, &models.User{
@@ -106,7 +112,8 @@ func (h *authHandlers) Login() echo.HandlerFunc {
 		})
 		if err != nil {
 			utils.LogResponseError(c, h.logger, err)
-			return c.JSON(httpErrors.ErrorResponse(err))
+			// return c.JSON(httpErrors.ErrorResponse(err))
+			return httpResponse.Error(c, err)
 		}
 
 		sess := &models.Session{
@@ -119,10 +126,12 @@ func (h *authHandlers) Login() echo.HandlerFunc {
 		_, err = h.sessUC.UpsertSession(ctx, sess)
 		if err != nil {
 			utils.LogResponseError(c, h.logger, err)
-			return c.JSON(httpErrors.ErrorResponse(err))
+			// return c.JSON(httpErrors.ErrorResponse(err))
+			return httpResponse.Error(c, err)
 		}
 
-		return c.JSON(http.StatusOK, userWithToken)
+		// return c.JSON(http.StatusOK, userWithToken)
+		return httpResponse.Success(c, http.StatusOK, userWithToken.Token, "")
 
 	}
 }
@@ -132,10 +141,12 @@ func (h *authHandlers) GetMe() echo.HandlerFunc {
 		// TODO: tracing
 		user, ok := c.Get("user").(*models.User)
 		if !ok {
-			utils.LogResponseError(c, h.logger, httpErrors.NewUnauthorizedError(httpErrors.Unauthorized))
-			return utils.ErrResponseWithLog(c, h.logger, httpErrors.NewUnauthorizedError(httpErrors.Unauthorized))
+			// utils.LogResponseError(c, h.logger, httpErrors.NewUnauthorizedError(httpErrors.Unauthorized))
+			// return utils.ErrResponseWithLog(c, h.logger, httpErrors.NewUnauthorizedError(httpErrors.Unauthorized))
+			return httpResponse.ErrorWithLog(c, h.logger, httpErrors.NewUnauthorizedError(httpErrors.Unauthorized))
 		}
-		return c.JSON(http.StatusOK, user)
+		// return c.JSON(http.StatusOK, user)
+		return httpResponse.Success(c, http.StatusOK, user, "Success Get User")
 	}
 }
 

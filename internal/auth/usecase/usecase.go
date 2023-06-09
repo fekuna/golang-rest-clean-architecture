@@ -84,6 +84,7 @@ func (u *authUC) Login(ctx context.Context, user *models.User) (*models.UserWith
 	}
 
 	if err = foundUser.ComparePassword(user.Password); err != nil {
+		fmt.Println("mashok")
 		return nil, httpErrors.NewUnauthorizedError(errors.Wrap(err, "authUC.GetUsers.ComparePassword"))
 	}
 
