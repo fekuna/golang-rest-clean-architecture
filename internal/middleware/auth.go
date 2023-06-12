@@ -96,3 +96,44 @@ func (mw *MiddlewareManager) validateJWTToken(c echo.Context, tokenString string
 
 	return nil
 }
+
+// for Docs
+
+// func (mw *MiddlewareManager) AuthJWTMiddleware(authUC auth.UseCase, cfg *config.Config) echo.MiddlewareFunc {
+// 	return func(next echo.HandlerFunc) echo.HandlerFunc {
+// 		return func(c echo.Context) error {
+// 			bearerHeader := c.Request().Header.Get("Authorization")
+
+// 			mw.logger.Infof("auth middleware bearerHeader %s", bearerHeader)
+
+// 			if bearerHeader != "" {
+// 				headerParts := strings.Split(bearerHeader, " ")
+// 				if len(headerParts) != 2 {
+// 					mw.logger.Error("auth middleware", zap.String("headerParts", "len(headerParts) != 2"))
+// 					return c.JSON(http.StatusUnauthorized, httpErrors.NewUnauthorizedError(httpErrors.Unauthorized))
+// 				}
+
+// 				tokenString := headerParts[1]
+
+// 				if err := mw.validateJWTToken(tokenString, authUC, c, cfg); err != nil {
+// 					mw.logger.Error("middleware validateJWTToken", zap.String("headerJWT", err.Error()))
+// 					return c.JSON(http.StatusUnauthorized, httpErrors.NewUnauthorizedError(httpErrors.Unauthorized))
+// 				}
+
+// 				return next(c)
+// 			}
+
+// 			cookie, err := c.Cookie("jwt-token")
+// 			if err != nil {
+// 				mw.logger.Errorf("c.Cookie", err.Error())
+// 				return c.JSON(http.StatusUnauthorized, httpErrors.NewUnauthorizedError(httpErrors.Unauthorized))
+// 			}
+
+// 			if err = mw.validateJWTToken(cookie.Value, authUC, c, cfg); err != nil {
+// 				mw.logger.Errorf("validateJWTToken", err.Error())
+// 				return c.JSON(http.StatusUnauthorized, httpErrors.NewUnauthorizedError(httpErrors.Unauthorized))
+// 			}
+// 			return next(c)
+// 		}
+// 	}
+// }

@@ -10,10 +10,10 @@ import (
 	"time"
 
 	"github.com/fekuna/go-rest-clean-architecture/config"
+	"github.com/fekuna/go-rest-clean-architecture/pkg/db/minioS3"
 	"github.com/fekuna/go-rest-clean-architecture/pkg/logger"
 	"github.com/jmoiron/sqlx"
 	"github.com/labstack/echo/v4"
-	"github.com/minio/minio-go/v7"
 )
 
 const (
@@ -27,17 +27,17 @@ type Server struct {
 	cfg         *config.Config
 	logger      logger.Logger
 	db          *sqlx.DB
-	minioClient *minio.Client
+	minioConfig *minioS3.MinioConfig
 }
 
 // NewServer New Server constructor
-func NewServer(cfg *config.Config, logger logger.Logger, db *sqlx.DB, minioClient *minio.Client) *Server {
+func NewServer(cfg *config.Config, logger logger.Logger, db *sqlx.DB, minioConfig *minioS3.MinioConfig) *Server {
 	return &Server{
 		echo:        echo.New(),
 		cfg:         cfg,
 		logger:      logger,
 		db:          db,
-		minioClient: minioClient,
+		minioConfig: minioConfig,
 	}
 }
 

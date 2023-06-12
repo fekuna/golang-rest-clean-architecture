@@ -7,6 +7,14 @@ CREATE EXTENSION IF NOT EXISTS CITEXT;
 -- CREATE EXTENSION IF NOT EXISTS postgis_topology;
 
 
+CREATE TABLE avatars (
+    avatar_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    bucket VARCHAR(30) NOT NULL,
+    file_path VARCHAR(250) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE users
 (
     user_id      UUID PRIMARY KEY                     DEFAULT uuid_generate_v4(),
@@ -16,7 +24,7 @@ CREATE TABLE users
     password     VARCHAR(250)                NOT NULL CHECK ( octet_length(password) <> 0 ),
     role         VARCHAR(10)                 NOT NULL DEFAULT 'user',
     about        VARCHAR(1024)                        DEFAULT '',
-    avatar       VARCHAR(512),
+    avatar_id    UUID REFERENCES avatars (avatar_id) ON DELETE CASCADE,
     phone_number VARCHAR(20),
     address      VARCHAR(250),
     city         VARCHAR(30),

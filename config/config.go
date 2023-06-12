@@ -55,6 +55,7 @@ type MinioConfig struct {
 	MinioSecretKey string
 	UseSSL         bool
 	MinioEndpoint  string
+	Bucket         string
 }
 
 // Load config file from given path

@@ -33,13 +33,32 @@ func NewMinioS3Client(endpoint string, accessKeyID string, secretAccessKey strin
 	}, nil
 }
 
+// Bucket exists checker
+func (r *MinioConfig) IsBucketExists(ctx context.Context, bucketName string) (bool, error) {
+	exists, err := r.client.BucketExists(ctx, bucketName)
+	if err != nil {
+		return true, err
+	}
+
+	return exists, nil
+}
+
+// Create bucket on minio
+func (r *MinioConfig) CreateBucket(ctx context.Context, bucketName string) error {
+	isBucketExists, err := r.IsBucketExists(ctx, bucketName)
+	if err != nil || isBucketExists {
+		return err
+	}
+
+	return r.client.MakeBucket(ctx, bucketName, minio.MakeBucketOptions{Region: "us-east-1"})
+}
+
 // Upload file to Minio
 func (r *MinioConfig) PutObject(ctx context.Context, input models.UploadInput) (*minio.UploadInfo, error) {
 	// TODO: Tracing
 
 	uploadInfo, err := r.client.PutObject(ctx, input.BucketName, r.generateFileName(input.Name), input.File, input.Size, minio.PutObjectOptions{ContentType: "application/octet-stream"})
 	if err != nil {
-		fmt.Println("Mashok", err)
 		return nil, errors.Wrap(err, "authAWSRepository.FileUpload.PutObject")
 	}
 	return &uploadInfo, err

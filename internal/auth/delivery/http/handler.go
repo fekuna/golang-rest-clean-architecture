@@ -1,10 +1,7 @@
 package http
 
 import (
-	"bytes"
 	"context"
-	"fmt"
-	"io"
 	"net/http"
 	"time"
 
@@ -16,7 +13,6 @@ import (
 	"github.com/fekuna/go-rest-clean-architecture/pkg/httpResponse"
 	"github.com/fekuna/go-rest-clean-architecture/pkg/logger"
 	"github.com/fekuna/go-rest-clean-architecture/pkg/utils"
-	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 )
 
@@ -139,14 +135,30 @@ func (h *authHandlers) Login() echo.HandlerFunc {
 func (h *authHandlers) GetMe() echo.HandlerFunc {
 	return func(c echo.Context) error {
 		// TODO: tracing
+		ctx := context.Background()
+
 		user, ok := c.Get("user").(*models.User)
 		if !ok {
 			// utils.LogResponseError(c, h.logger, httpErrors.NewUnauthorizedError(httpErrors.Unauthorized))
 			// return utils.ErrResponseWithLog(c, h.logger, httpErrors.NewUnauthorizedError(httpErrors.Unauthorized))
 			return httpResponse.ErrorWithLog(c, h.logger, httpErrors.NewUnauthorizedError(httpErrors.Unauthorized))
 		}
+
+		avatarUrl, err := h.authUC.GetAvatarURL(ctx, user.AvatarID)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, err.Error())
+		}
+
+		responseData := struct {
+			AvatarUrl string `json:"avatar_url"`
+			models.User
+		}{
+			AvatarUrl: avatarUrl.String(),
+			User:      *user,
+		}
+
 		// return c.JSON(http.StatusOK, user)
-		return httpResponse.Success(c, http.StatusOK, user, "Success Get User")
+		return httpResponse.Success(c, http.StatusOK, responseData, "Success Get User")
 	}
 }
 
@@ -168,53 +180,26 @@ func (h *authHandlers) UploadAvatar() echo.HandlerFunc {
 
 		ctx := context.Background()
 
-		bucket := c.QueryParam("bucket")
-		uID, err := uuid.Parse(c.Param("user_id"))
+		user, ok := c.Get("user").(*models.User)
+		if !ok {
+			// utils.LogResponseError(c, h.logger, httpErrors.NewUnauthorizedError(httpErrors.Unauthorized))
+			// return utils.ErrResponseWithLog(c, h.logger, httpErrors.NewUnauthorizedError(httpErrors.Unauthorized))
+			return httpResponse.ErrorWithLog(c, h.logger, httpErrors.NewUnauthorizedError(httpErrors.Unauthorized))
+		}
+
+		uploadInput := c.Get("uploadInput").(models.UploadInput)
+		if !ok {
+			return httpResponse.ErrorWithLog(c, h.logger, httpErrors.NewInternalServerError(httpErrors.InternalServerError))
+		}
+
+		updatedUser, err := h.authUC.UploadAvatar(ctx, user.UserID, uploadInput)
 		if err != nil {
 			utils.LogResponseError(c, h.logger, err)
 			return c.JSON(httpErrors.ErrorResponse(err))
 		}
 
-		image, err := utils.ReadImage(c, "file")
-		if err != nil {
-			utils.LogResponseError(c, h.logger, err)
-			return c.JSON(httpErrors.ErrorResponse(err))
-		}
-
-		file, err := image.Open()
-		if err != nil {
-			utils.LogResponseError(c, h.logger, err)
-			return c.JSON(httpErrors.ErrorResponse(err))
-		}
-		defer file.Close()
-
-		binaryImage := bytes.NewBuffer(nil)
-		if _, err = io.Copy(binaryImage, file); err != nil {
-			utils.LogResponseError(c, h.logger, err)
-			return c.JSON(httpErrors.ErrorResponse(err))
-		}
-
-		contentType, err := utils.CheckImageFileContentType(binaryImage.Bytes())
-		if err != nil {
-			utils.LogResponseError(c, h.logger, err)
-			return c.JSON(httpErrors.ErrorResponse(err))
-		}
-
-		reader := bytes.NewReader(binaryImage.Bytes())
-
-		updatedUser, err := h.authUC.UploadAvatar(ctx, uID, models.UploadInput{
-			File:        reader,
-			Name:        image.Filename,
-			Size:        image.Size,
-			ContentType: contentType,
-			BucketName:  bucket,
-		})
-		if err != nil {
-			utils.LogResponseError(c, h.logger, err)
-			return c.JSON(httpErrors.ErrorResponse(err))
-		}
-
-		return c.JSON(http.StatusOK, updatedUser)
+		// return c.JSON(http.StatusOK, updatedUser)
+		return httpResponse.Success(c, http.StatusCreated, updatedUser, "avatar uploaded")
 	}
 }
 
@@ -232,17 +217,25 @@ func (h *authHandlers) UploadAvatar() echo.HandlerFunc {
 // @Router /auth/{id}/avatar [post]
 func (h *authHandlers) GetAvatar() echo.HandlerFunc {
 	return func(c echo.Context) error {
-		fmt.Println("Hello GetAvatar")
 		// TODO: tracing
+
+		user, ok := c.Get("user").(*models.User)
+		if !ok {
+			return httpResponse.ErrorWithLog(c, h.logger, httpErrors.NewUnauthorizedError(httpErrors.Unauthorized))
+		}
 
 		ctx := context.Background()
 
-		url, err := h.authUC.GetAvatar(ctx)
-		fmt.Printf("ini URL %+v\n", url)
+		url, err := h.authUC.GetAvatarURL(ctx, user.AvatarID)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, err.Error())
 		}
 
-		return c.JSON(http.StatusOK, url.String())
+		// return c.JSON(http.StatusOK, url.String())
+		return httpResponse.Success(c, http.StatusOK, struct {
+			AvatarUrl string `json:"avatar_url"`
+		}{
+			AvatarUrl: url.String(),
+		}, "Success to get avatar")
 	}
 }

@@ -13,5 +13,5 @@ type UseCase interface {
 	Login(ctx context.Context, user *models.User) (*models.UserWithToken, error)
 	GetByID(ctx context.Context, userID uuid.UUID) (*models.User, error)
 	UploadAvatar(ctx context.Context, userID uuid.UUID, file models.UploadInput) (*models.User, error)
-	GetAvatar(ctx context.Context) (*url.URL, error)
+	GetAvatarURL(ctx context.Context, avatarID uuid.UUID) (*url.URL, error)
 }

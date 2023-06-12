@@ -15,13 +15,14 @@ import (
 )
 
 func (s *Server) MapHandlers(e *echo.Echo) error {
+
 	// Init Repository
 	authRepo := authRepository.NewAuthRepository(s.db)
 	sessRepo := sessRepository.NewSessionRepository(s.db)
-	authMinioRepo := authRepository.NewAuthMinioRepository(s.minioClient)
+	// authMinioRepo := authRepository.NewAuthMinioRepository(s.minioConfig)
 
 	// Init useCase
-	authUC := authUC.NewAuthUseCase(s.cfg, s.logger, authRepo, authMinioRepo)
+	authUC := authUC.NewAuthUseCase(s.cfg, s.logger, authRepo, *s.minioConfig)
 	sessUC := sessUC.NewSessionUseCase(s.cfg, s.logger, sessRepo)
 
 	// Init handlers

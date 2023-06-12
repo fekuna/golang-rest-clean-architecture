@@ -10,6 +10,7 @@ import (
 	"github.com/fekuna/go-rest-clean-architecture/config"
 	"github.com/fekuna/go-rest-clean-architecture/internal/auth"
 	"github.com/fekuna/go-rest-clean-architecture/internal/models"
+	"github.com/fekuna/go-rest-clean-architecture/pkg/db/minioS3"
 	"github.com/fekuna/go-rest-clean-architecture/pkg/httpErrors"
 	"github.com/fekuna/go-rest-clean-architecture/pkg/logger"
 	"github.com/fekuna/go-rest-clean-architecture/pkg/utils"
@@ -19,19 +20,19 @@ import (
 
 // Auth Usecase
 type authUC struct {
-	cfg       *config.Config
-	logger    logger.Logger
-	authRepo  auth.Repository
-	minioRepo auth.MinioRepository
+	cfg         *config.Config
+	logger      logger.Logger
+	authRepo    auth.Repository
+	minioConfig minioS3.MinioConfig
 }
 
 // Auth usecase constructor
-func NewAuthUseCase(cfg *config.Config, logger logger.Logger, authRepo auth.Repository, minioRepo auth.MinioRepository) auth.UseCase {
+func NewAuthUseCase(cfg *config.Config, logger logger.Logger, authRepo auth.Repository, minioConfig minioS3.MinioConfig) auth.UseCase {
 	return &authUC{
-		cfg:       cfg,
-		logger:    logger,
-		authRepo:  authRepo,
-		minioRepo: minioRepo,
+		cfg:         cfg,
+		logger:      logger,
+		authRepo:    authRepo,
+		minioConfig: minioConfig,
 	}
 }
 
@@ -47,6 +48,13 @@ func (u *authUC) Register(ctx context.Context, user *models.User) (*models.UserW
 		return nil, httpErrors.NewBadRequestError(errors.Wrap(err, "authUC.Register.PrepareCreate"))
 	}
 
+	avatar, err := u.authRepo.FindAvatarByFilePath(ctx, "1b05aaaf-6881-4917-953e-048ac295a6e9-default.jpg")
+	if err != nil {
+		u.logger.Errorf("authUC.Register.FindAvatarByFilePath: %s", err)
+		return nil, httpErrors.NewInternalServerError(errors.Wrap(err, "authUC.Register.FindAvatarByFilePath"))
+	}
+
+	user.AvatarID = avatar.AvatarID
 	createdUser, err := u.authRepo.Register(ctx, user)
 	if err != nil {
 		return nil, err
@@ -84,7 +92,6 @@ func (u *authUC) Login(ctx context.Context, user *models.User) (*models.UserWith
 	}
 
 	if err = foundUser.ComparePassword(user.Password); err != nil {
-		fmt.Println("mashok")
 		return nil, httpErrors.NewUnauthorizedError(errors.Wrap(err, "authUC.GetUsers.ComparePassword"))
 	}
 
@@ -128,19 +135,35 @@ func (u *authUC) GetByID(ctx context.Context, userID uuid.UUID) (*models.User, e
 func (u *authUC) UploadAvatar(ctx context.Context, userID uuid.UUID, file models.UploadInput) (*models.User, error) {
 	// TODO: Tracing
 
-	uploadInfo, err := u.minioRepo.PutObject(ctx, file)
+	if err := u.minioConfig.CreateBucket(ctx, file.BucketName); err != nil {
+		u.logger.Errorf("AuthUC.UploadAvatar.CreateBucket: %s", err)
+		return nil, httpErrors.NewInternalServerError(errors.Wrap(err, "authUC.UploadAvatar.CreateBucket"))
+	}
+
+	fileUploaded, err := u.minioConfig.PutObject(ctx, file)
 	if err != nil {
-		u.logger.Errorf("AuthUC.Update.UploadAvatar: %s", err)
+		u.logger.Errorf("AuthUC.UploadAvatar.UploadAvatar: %s", err)
 		return nil, httpErrors.NewInternalServerError(errors.Wrap(err, "authUC.UploadAvatar.PutObject"))
 	}
 
-	avatarURL := u.generateMinioURL(file.BucketName, uploadInfo.Key)
+	// avatarURL := u.generateMinioURL(file.BucketName, uploadInfo.Key)
+
+	createAvatar, err := u.authRepo.CreateAvatar(ctx, &models.Avatar{
+		Bucket:   fileUploaded.Bucket,
+		FilePath: fileUploaded.Key,
+	})
+
+	if err != nil {
+		u.logger.Errorf("AuthUC.UploadAvatar.createAvatar: %s", err)
+		return nil, httpErrors.NewInternalServerError(errors.Wrap(err, "authUC.UploadAvatar.createAvatar"))
+	}
 
 	updatedUser, err := u.authRepo.Update(ctx, &models.User{
-		UserID: userID,
-		Avatar: &avatarURL,
+		UserID:   userID,
+		AvatarID: createAvatar.AvatarID,
 	})
 	if err != nil {
+		u.logger.Errorf("AuthUC.UploadAvatar.Update: %s", err)
 		return nil, err
 	}
 
@@ -149,8 +172,14 @@ func (u *authUC) UploadAvatar(ctx context.Context, userID uuid.UUID, file models
 	return updatedUser, nil
 }
 
-func (u *authUC) GetAvatar(ctx context.Context) (*url.URL, error) {
-	return u.minioRepo.GetObjectUrl(ctx, "static", "static/pathnich/6b2dba16-c2eb-4cce-89c1-7d2b4c5368fa-camera_lense_0.jpeg", time.Hour*24*7)
+func (u *authUC) GetAvatarURL(ctx context.Context, avatarID uuid.UUID) (*url.URL, error) {
+	fmt.Println("avatarID: ", avatarID)
+	avatar, err := u.authRepo.FindAvatarByID(ctx, avatarID)
+	if err != nil {
+		return nil, err
+	}
+
+	return u.minioConfig.GetObjectUrl(ctx, avatar.Bucket, avatar.FilePath, time.Hour*24*7)
 }
 
 func (u *authUC) generateMinioURL(bucket string, key string) string {

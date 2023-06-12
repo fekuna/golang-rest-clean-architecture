@@ -17,7 +17,7 @@ type User struct {
 	Password    string     `json:"password,omitempty" db:"password" redis:"password" validate:"omitempty,required,gte=6"`
 	Role        *string    `json:"role,omitempty" db:"role" redis:"role" validate:"omitempty,lte=10"`
 	About       *string    `json:"about,omitempty" db:"about" redis:"about" validate:"omitempty,lte=1024"`
-	Avatar      *string    `json:"avatar,omitempty" db:"avatar" redis:"avatar" validate:"omitempty,lte=512,url"`
+	AvatarID    uuid.UUID  `json:"avatar_id,omitempty" db:"avatar_id" redis:"avatar_id" validate:"omitempty"`
 	PhoneNumber *string    `json:"phone_number,omitempty" db:"phone_number" redis:"phone_number" validate:"omitempty,lte=20"`
 	Address     *string    `json:"address,omitempty" db:"address" redis:"address" validate:"omitempty,lte=250"`
 	City        *string    `json:"city,omitempty" db:"city" redis:"city" validate:"omitempty,lte=24"`

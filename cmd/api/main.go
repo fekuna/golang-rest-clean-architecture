@@ -48,9 +48,9 @@ func main() {
 	}
 	defer psqlDB.Close()
 
-	minioClient, err := minioS3.NewMinioS3Client(cfg.Minio.Endpoint, cfg.Minio.MinioAccessKey, cfg.Minio.MinioSecretKey, cfg.Minio.UseSSL)
+	MinioConfig, err := minioS3.NewMinioS3Client(cfg.Minio.Endpoint, cfg.Minio.MinioAccessKey, cfg.Minio.MinioSecretKey, cfg.Minio.UseSSL)
 
-	s := server.NewServer(cfg, appLogger, psqlDB, minioClient)
+	s := server.NewServer(cfg, appLogger, psqlDB, MinioConfig)
 	if err = s.Run(); err != nil {
 		log.Fatal(err)
 	}
