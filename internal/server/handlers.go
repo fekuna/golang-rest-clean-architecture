@@ -5,7 +5,9 @@ import (
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	echoSwagger "github.com/swaggo/echo-swagger"
 
+	"github.com/fekuna/go-rest-clean-architecture/docs"
 	authHttp "github.com/fekuna/go-rest-clean-architecture/internal/auth/delivery/http"
 	authRepository "github.com/fekuna/go-rest-clean-architecture/internal/auth/repository"
 	authUC "github.com/fekuna/go-rest-clean-architecture/internal/auth/usecase"
@@ -29,6 +31,9 @@ func (s *Server) MapHandlers(e *echo.Echo) error {
 	authHandlers := authHttp.NewAuthHandlers(s.cfg, s.logger, authUC, sessUC)
 
 	mw := apiMiddlewares.NewMiddlewareManager(s.cfg, s.logger, sessUC, authUC)
+
+	docs.SwaggerInfo.Title = "Go example REST API"
+	e.GET("/swagger/*", echoSwagger.WrapHandler)
 
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
 		AllowOrigins: []string{"*"},

@@ -37,7 +37,7 @@ func main() {
 	appLogger := logger.NewApiLogger(cfg)
 
 	appLogger.InitLogger()
-	appLogger.Infof("AppVersion: %s, LogLeve: %s, Mode: %s, SSL: %v", cfg.Server.AppVersion, cfg.Logger.Level, cfg.Server.Mode, cfg.Server.SSL)
+	appLogger.Infof("AppVersion: %s, LogLevel: %s, Mode: %s, SSL: %v", cfg.Server.AppVersion, cfg.Logger.Level, cfg.Server.Mode, cfg.Server.SSL)
 
 	// psqlDB, err
 	psqlDB, err := postgres.NewPsqlDB(cfg)
